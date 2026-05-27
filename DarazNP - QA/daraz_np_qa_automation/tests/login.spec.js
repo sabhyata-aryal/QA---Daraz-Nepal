@@ -1,8 +1,8 @@
 const { test, expect } = require('@playwright/test');
 
 const BASE_URL = 'https://www.daraz.com.np';
-const VALID_EMAIL = 'sabhyata.aryal01@gmail.com';
-const VALID_PASSWORD = 'sabhDaraz@123';
+const VALID_EMAIL = process.env.DARAZ_EMAIL;
+const VALID_PASSWORD = process.env.DARAZ_PASSWORD;
 
 async function openLoginModal(page) {
   await page.goto(BASE_URL);
