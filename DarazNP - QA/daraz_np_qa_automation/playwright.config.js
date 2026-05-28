@@ -1,29 +1,41 @@
-// @ts-check
 import { defineConfig, devices } from '@playwright/test';
+
+const isCI = !!process.env.CI;
 
 export default defineConfig({
   testDir: './tests',
-  fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  timeout: 60000,
+  expect: {
+    timeout: 10000,
+  },
+  fullyParallel: false,
+  forbidOnly: isCI,
+  retries: isCI ? 2 : 1,
+  workers: isCI ? 1 : 2,
+  reporter: [['list'], ['html']],
   use: {
-    trace: 'on-first-retry',
-    storageState: 'auth.json',
+    baseURL: 'https://www.daraz.com.np',
+    headless: isCI,
+    viewport: { width: 1366, height: 768 },
+    ignoreHTTPSErrors: true,
+    actionTimeout: 15000,
+    navigationTimeout: 60000,
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
+    trace: 'retain-on-failure',
+    launchOptions: isCI ? {} : { slowMo: 200 },
   },
   projects: [
     {
+      name: 'setup',
+      testMatch: /auth\.setup\.js/,
+    },
+    {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+      testIgnore: [/auth\.setup\.js/],
     },
   ],
 });

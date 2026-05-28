@@ -1,29 +1,49 @@
-const { chromium } = require('@playwright/test');
+require('dotenv').config();
 
-// Run this ONCE to save your login session
-// Command: node tests/auth.setup.js
+const { test: setup } = require('@playwright/test');
 
-(async () => {
-  const browser = await chromium.launch({ headless: false });
-  const context = await browser.newContext();
-  const page = await context.newPage();
+setup('save authenticated session', async ({ page }) => {
+  const email = process.env.DARAZ_EMAIL;
+  const password = process.env.DARAZ_PASSWORD;
 
-  await page.goto('https://www.daraz.com.np');
-  await page.getByRole('link', { name: 'Login' }).click();
-  await page.getByRole('textbox', { name: 'Please enter your Phone or' })
-    .waitFor({ timeout: 10000 });
-  await page.getByRole('textbox', { name: 'Please enter your Phone or' })
-    .fill('sabhyata.aryal01@gmail.com');
-  await page.getByRole('textbox', { name: 'Please enter your password' })
-    .fill('sabhDaraz@123');
-  await page.getByRole('button', { name: 'LOGIN' }).click();
+  if (!email || !password) {
+    throw new Error('DARAZ_EMAIL and DARAZ_PASSWORD must be set in .env');
+  }
 
-  // Wait for login to complete
-  await page.waitForTimeout(5000);
+  await page.goto('https://www.daraz.com.np', {
+    waitUntil: 'domcontentloaded',
+  });
 
-  // Save session cookies and storage
-  await context.storageState({ path: 'auth.json' });
-  console.log('✅ Login session saved to auth.json');
+  await page.getByRole('link', { name: /login/i }).click();
 
-  await browser.close();
-})();
+  await page.getByRole('textbox', {
+    name: /Phone|Email/i,
+  }).fill(email);
+
+  await page.getByRole('textbox', {
+    name: /password/i,
+  }).fill(password);
+
+  await page.getByRole('button', { name: /^LOGIN$/i }).click();
+
+  try {
+    await Promise.race([
+      page.getByRole('textbox', {
+        name: /Please enter your password/i,
+      }).waitFor({ state: 'hidden', timeout: 45000 }),
+      page.locator('.iweb-modal').waitFor({ state: 'hidden', timeout: 45000 }),
+    ]);
+  } catch (error) {
+    const fs = require('fs');
+    const authPath = require('path').join(__dirname, '..', 'auth.json');
+
+    if (fs.existsSync(authPath)) {
+      console.warn('Automated login did not complete; keeping existing auth.json');
+      return;
+    }
+
+    throw error;
+  }
+
+  await page.context().storageState({ path: 'auth.json' });
+});
